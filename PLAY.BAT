@@ -1,0 +1,1 @@
+C:\nasm\nasm -o wynik.com -f bin ^mal.asm
