@@ -2,8 +2,8 @@
 
 	;DO 2^16-1=65535
 	xor	ax,ax
-	mov	ax,9
-	mov	cx,1000 ;iterator
+	mov	ax,06302
+	mov	cx,10000 ;iterator
 	jmp	petla	
 petla:
 	cmp	cx,0
@@ -25,17 +25,27 @@ ifZeroOrNumber:
 	pop	bx	;adres
 	pop	dx	;wynik
 	cmp	dx,0
-	je	Null
+	je	zero
+	mov	byte [bool],1
 	add	dl,'0'
 	mov	ah,2
 	int	21h
 	push	bx
 	ret
-Null:
+zero:
+	cmp	byte	[bool],0
+	je	null
+	mov	ah,2
+	mov	dl,'0'
+	int	21h
 	push	bx	;adres ifZeroOrNumber
 	ret
+null:
+	push	bx
+	ret
 koniec:
-	mov	ax,4C00h
+	mov	ax,4C00h	
 	int	21h
 dziesiec	dw	10
 reszta	dw	0
+bool	db	0	;jak cyfry juz byly wyswietlane bool=1
