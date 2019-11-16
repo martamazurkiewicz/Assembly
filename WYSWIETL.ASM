@@ -2,7 +2,7 @@
 
 	;DO 2^16-1=65535
 	xor	ax,ax
-	mov	ax,4021
+	mov	ax,9
 	mov	cx,1000 ;iterator
 	jmp	petla	
 petla:
@@ -22,12 +22,17 @@ petla:
 	jmp	petla	
 ifZeroOrNumber:
 	xor	bx,bx
-	pop	bx
-	pop	dx
+	pop	bx	;adres
+	pop	dx	;wynik
+	cmp	dx,0
+	je	Null
 	add	dl,'0'
 	mov	ah,2
 	int	21h
 	push	bx
+	ret
+Null:
+	push	bx	;adres ifZeroOrNumber
 	ret
 koniec:
 	mov	ax,4C00h
