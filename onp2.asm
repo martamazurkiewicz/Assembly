@@ -28,8 +28,8 @@ petla1:
         jg      wrongSignException
         mov     byte    [output+di],al
         inc     di
-        mov     byte    [output+di],' '
-        inc     di
+        ;mov     byte    [output+di],' '
+        ;inc     di
         ;while there are tokens to be read do petla1
         inc     si
         xor     ax,ax
@@ -62,6 +62,14 @@ ifOperator:
         ;       {
         ;       pop the operator from the operator stack and discard it
         ;       }
+        cmp     al,'('
+        je      addToStack
+
+        cmp     byte    [output+di-1],36
+        je      znak
+        mov     byte    [output+di],' '
+        inc     di
+znak:
         cmp     al,'+'
         je      naStos2
         cmp     al,'-'
@@ -70,8 +78,6 @@ ifOperator:
         je      naStos3       
         cmp     al,'/'
         je      naStos3
-        cmp     al,'('
-        je      addToStack
         cmp     al,')'
         je      rightParen
         jne     wrongSignException
@@ -152,8 +158,8 @@ rightParen:
         je      endOfParen
         mov     byte    [output+di],al
         inc     di
-        mov     byte    [output+di],' '
-        inc     di
+        ;mov     byte    [output+di],' '
+        ;inc     di
         jmp     rightParen
 endOfParen:
         inc     si
@@ -172,6 +178,8 @@ endOfTokens:
         ;                pop the operator from the operator stack onto the output queue.
         ;       }
         ;exit
+        mov     byte    [output+di],' '
+        inc     di
         pop     ax
         cmp     al,0           ;nie ma operatora na szczycie stosu
         je      stackIsNull
@@ -181,8 +189,8 @@ endOfTokens:
         je      mismatchedParenException
         mov     byte    [output+di],al
         inc     di
-        mov     byte    [output+di],' '
-        inc     di
+        ;mov     byte    [output+di],' '
+        ;inc     di
         jmp     endOfTokens
 stackIsNull:
         push    word    [adres]
@@ -264,10 +272,25 @@ getResult:
 ret
 
 DisplayResult:
-        mov     ah,2
-        mov     dx,[result]
-        add     dx,'0'
-        int     21h    
+        xor     ax,ax
+	mov	ax,[result]
+	mov	bx,10
+	mov	cx,0
+podzial:
+	xor	dx,dx
+	div	bx
+	push	dx
+	inc	cx
+	cmp	ax,0
+	jne	podzial
+	mov	ah,2
+wysw:
+	pop	dx
+	add	dl,'0'
+	int	21h
+	dec	cx
+	cmp	cl,0
+	jg	wysw		
 ret
 
 koniec: 

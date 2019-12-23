@@ -1,1 +1,1 @@
-C:\nasm\nasm -o wynik.com -f bin ^mal.asm
+C:\nasm\nasm -o onp2.com -f bin onp2.asm
