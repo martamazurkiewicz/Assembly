@@ -1,16 +1,37 @@
         org     100h
 start:  
-        mov     ah,10
-        mov     dx,input
-        int     21h
+	call	Menu	
+	call	GetInput
         call    Newline
         call    Converse
         call    Display
         call    Newline
         call    Compute
         call    DisplayResult
-        jmp     koniec
-
+        call	Clean
+        jmp     start
+Menu:
+	call	Newline
+	mov	ah,9
+	mov	dx,label1
+	int	21h
+	mov	ah,1
+	int	21h
+	cmp	al,'q'
+	je	koniec
+	cmp	al,'1'
+	jne	Menu
+ret
+GetInput:
+	call	Newline
+	mov	ah,9
+	mov	dx,label2
+	int	21h
+	call	Newline
+	mov	ah,10
+	mov	dx,input
+	int	21h	
+ret
 Converse:
         pop     word    [adres]
         mov     ax,0
@@ -193,6 +214,8 @@ endOfTokens:
         ;inc     di
         jmp     endOfTokens
 stackIsNull:
+        dec     di
+        mov     byte    [output+di],36
         push    word    [adres]
 ret
 
@@ -204,74 +227,146 @@ ret
 
 Display:
         mov     ah,9
+        mov     dx,label3
+        int     21h
+        mov     ah,9
         mov     dx,output
         int     21h    
 ret
 
 Compute:
-        pop     word    [adres1]
-        xor     si,si
-        ;xor     ax,ax
-        ;mov     al,'!'
-        ;push    ax      ;jak na stosie bedzie '!' oznacza to ze stos jest pusty
-petla2:
-        cmp     byte    [output+si],36
-        je      getResult
+        pop     word    [adres]
+	mov	byte    [stackPointer],0
+	xor	si, si
+	xor	di, di
+computeLoop:
+	cmp	byte	[output+si],36
+	je	finish
+	cmp	byte	[output+si],' '
+	je	space
+	cmp	byte	[output+si],'+'
+	je	dodaj
+	cmp	byte	[output+si],'-'
+	je	odejmij
+	cmp	byte	[output+si],'*'
+	je	pomnoz
+	cmp	byte	[output+si],'/'
+	je	podziel
+	cmp	byte	[output+si],'0'
+	jl	wrongSignException
+	cmp	byte	[output+si],'9'
+	ja	wrongSignException
+
+	cmp	di,4
+	ja	numberBiggerThan16bitsException
         xor     ax,ax
-        mov     al,[output+si]
-        cmp     al,'0'
-        jl      operator
-        sub     al,'0'
-        push    ax
-        add     si,2
-        jmp     petla2
-operator:
-        cmp     al,'+'
-        je      dodaj
-        cmp     al,'-'
-        je      odejmij
-        cmp     al,'*'
-        je      pomnoz      
-        cmp     al,'/'
-        je      podziel
-dodaj:
-        pop     bx
-        pop     ax
-        add     ax,bx
-        push    ax
-        add     si,2
-        jmp     petla2
-odejmij:
-        pop     bx
-        pop     ax
-        sub     ax,bx
-        push    ax
-        add     si,2
-        jmp     petla2
-pomnoz:
-        pop     bx
-        pop     ax
+	mov	al,[output+si]
+	mov	byte	[number+di],al
+	inc	di
+	inc	si
+	jmp	computeLoop
+space:
+        inc     si
+        cmp     byte    [number],36
+        jne     multiDigitNumber
+        xor	di,di
+        jmp     computeLoop
+multiDigitNumber:
+        mov     di,4
+        mov     bx,1
+        mov     cx,10
+mDNLoop:
+        xor     ax,ax
         xor     dx,dx
+        mov     al,[number+di]
+        cmp     al,36
+	je	dollar
+        sub     al,'0'
         mul     bx
-        push    ax
-        add     si,2
-        jmp     petla2
+        add     word    [integer],ax
+        mov     ax,bx
+        mul     cx
+        mov     bx,ax
+        cmp     di,0
+        je      finishMDN
+        dec     di
+        jmp     mDNLoop
+dollar:
+	cmp	di,0
+	je	finishMDN
+	dec	di
+	jmp	mDNLoop
+finishMDN:
+        push    word    [integer]
+        call    CleanNumber
+	inc	byte	[stackPointer]
+        jmp     computeLoop
+
+dodaj:
+	cmp	byte	[stackPointer],2
+	jl	notEnoughArgumentsException
+	pop	bx
+	pop	ax
+	add	ax,bx
+	push	ax
+	inc	si
+	dec	byte    [stackPointer]
+	jmp	computeLoop
+odejmij:
+	cmp	byte	[stackPointer],2
+	jl	notEnoughArgumentsException
+	pop	bx
+	pop	ax
+	sub	ax,bx
+	push	ax
+	inc	si
+	dec	byte    [stackPointer]
+	jmp	computeLoop
+pomnoz:
+	cmp	byte	[stackPointer],2
+	jl	notEnoughArgumentsException
+	pop	bx
+	pop	ax
+        xor     dx,dx
+	mul     bx
+        cmp     dx,0
+        jne     multiplicationOverflowException
+	push	ax
+	inc	si
+	dec	byte    [stackPointer]
+	jmp	computeLoop
 podziel:
-        pop     bx
-        pop     ax
+	cmp	byte	[stackPointer],2
+	jl	notEnoughArgumentsException
+	pop	bx
         cmp     bx,0
         je      divideByZeroException
+        pop	ax
         xor     dx,dx
-        div     bx
-        push    ax
-        add     si,2
-        jmp     petla2
-getResult:
+	div     bx
+	push	ax
+	inc	si
+	dec	byte    [stackPointer]
+	jmp	computeLoop
+finish:
         pop     word    [result]
-        push    word    [adres1]
+        push    word    [adres]
+ret
+
+CleanNumber:
+        mov     word    [integer],0
+        mov     di,5
+cleanNumberLoop:
+        dec     di
+        mov     byte    [number+di],36
+        cmp     di,0
+        jg      cleanNumberLoop
 ret
 
 DisplayResult:
+        mov     ah,9
+        mov     dx,label4
+        int     21h
         xor     ax,ax
 	mov	ax,[result]
 	mov	bx,10
@@ -293,6 +388,23 @@ wysw:
 	jg	wysw		
 ret
 
+Clean:
+        mov     word    [result],0
+	mov	byte	[input+1],0
+        mov     di,2
+cleanInput:
+	mov	byte	[input+di],36
+	inc     di
+	cmp     di,29
+        jle     cleanInput
+        xor     di,di
+cleanOutput:
+	mov	byte	[output+di],36
+	inc     di
+	cmp     di,65
+        jle     cleanOutput
+ret
+
 koniec: 
         mov     ax,4c00h
         int     21h
@@ -302,42 +414,71 @@ divideByZeroException:
         mov     ah,9
         mov     dx,divideByZero
         int     21h
-        jmp     koniec
-
+        call    Clean
+        jmp     start
 mismatchedParenException:
         call    Newline
         mov     ah,9
         mov     dx,mismatchedParen
         int     21h
-        jmp     koniec
-
+        call    Clean
+        jmp     start
 lastSignIsOperatorException:
         call    Newline
         mov     ah,9
         mov     dx,lastSignIsOperator
         int     21h
-        jmp     koniec
-
+        call    Clean
+        jmp     start
 wrongSignException:
         call    Newline
         mov     ah,9
         mov     dx,wrongSign
         int     21h
-        jmp     koniec
+        call    Clean
+        jmp     start
+numberBiggerThan16bitsException:
+        mov     ah,9
+        mov     dx,numberBiggerThan16bits
+        int     21h
+        call    Clean
+        jmp     start
+notEnoughArgumentsException:
+        mov     ah,9
+        mov     dx,notEnoughArguments
+        int     21h
+        call    Clean
+        jmp     start
+multiplicationOverflowException:
+        mov     ah,9
+        mov     dx,multiplicationOverflow
+        int     21h
+        call    Clean
+        jmp     start
         
 input	db	26
         db	0
 	TIMES	27	db	36 
 
-output  TIMES	100	db	36
-result  dw      0
-
+output  TIMES	65	db	36
+result          dw      0
 
 ent	db	10,13,36
-adres   dw      0
-adres1  dw      0
 
-mismatchedParen         dw      "There are mismatched parentheses in equision$"
+adres   dw      0
+stackPointer	db	0
+number	TIMES	5 db 36
+integer         dw      0
+
+mismatchedParen         dw      "There are mismatched parentheses in equation$"
 lastSignIsOperator      dw      "Last sign cannot be an operator$"
 wrongSign               dw      "Sign is not a number or operator$"
 divideByZero            dw      "Do not divide by zero$"
+numberBiggerThan16bits  dw      "Calculated number was biger than 16 bits$"
+notEnoughArguments      dw      "Wrong number of arguments per operation$"
+multiplicationOverflow  dw      "Result of multiplication is bigger than 16 bits$"
+
+label1  	dw	"To translate and compute equation choose 1, to quit choose q$"
+label2  	dw	"Infix notation: $"
+label3  	dw	"Equation in RPN: $"
+label4  	dw	"Result: $"
